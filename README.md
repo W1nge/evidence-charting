@@ -1,5 +1,7 @@
 # Evidence Charting
 
+[中文](README.zh.md) | English
+
 Evidence Charting is a Codex skill for turning source-backed research into audited Excel workbooks with clear bar charts.
 
 It is designed for work such as benchmark reports, model/product comparisons, competitor research, pricing comparisons, and other research tasks where the final chart should be traceable back to evidence.
