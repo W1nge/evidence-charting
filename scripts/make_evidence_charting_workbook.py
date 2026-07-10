@@ -957,12 +957,12 @@ def main(argv: list[str] | None = None) -> int:
 
     spec = normalize_spec(load_spec(args.input, args.self_test))
     if args.validate_only:
-        print(json.dumps({"valid": True, "metrics": len(spec["metrics"]), "entities": len(spec["entities"])}, ensure_ascii=False, indent=2))
+        print(json.dumps({"valid": True, "metrics": len(spec["metrics"]), "entities": len(spec["entities"])}, indent=2))
         return 0
     if not args.output:
         parser.error("--output is required unless --validate-only is used")
     result = build_workbook(spec, args.output)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    print(json.dumps(result, indent=2))
     return 0
 
 
