@@ -1,0 +1,8 @@
+should_trigger:
+  - "调研五个大模型的公开跑分，做成带来源审计的 Excel 柱状图工作簿。"
+  - "Use my structured benchmark JSON to create a source-backed multi-chart comparison workbook."
+  - "Review and rebuild this competitor research workbook; preserve evidence links and missing values."
+should_not_trigger:
+  - "在聊天里简单比较这三个产品，不需要文件。"
+  - "把这个现有 Excel 图表的标题改成蓝色。"
+  - "Build an interactive dashboard from this CSV."

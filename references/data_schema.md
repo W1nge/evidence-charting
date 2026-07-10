@@ -1,6 +1,6 @@
 # Data Schema
 
-Use this JSON shape with `scripts/make_bar_chart_research_workbook.py`.
+Use this JSON shape with `scripts/make_evidence_charting_workbook.py`.
 
 ```json
 {
@@ -26,7 +26,16 @@ Use this JSON shape with `scripts/make_bar_chart_research_workbook.py`.
         "competitor": null
       },
       "sources": [
-        "https://example.com/source"
+        {
+          "url": "https://example.com/source",
+          "publisher": "Example Lab",
+          "retrieved_at": "2026-07-10",
+          "source_type": "official benchmark",
+          "confidence": "high",
+          "date_scope": "v1.2 results",
+          "caveat": "Vendor-reported result",
+          "extraction_method": "HTML table"
+        }
       ],
       "evidence_notes": "Optional caveat, extraction note, or conflict note."
     }
@@ -46,7 +55,8 @@ Use this JSON shape with `scripts/make_bar_chart_research_workbook.py`.
 - `entities[].group`: used for grouped comparisons.
 - `entities[].color`: fixed theme color. If omitted, the script assigns a palette color, but explicit colors are better.
 - `metrics[].scores`: omit missing values or set them to `null`; do not use `0` for missing.
-- `metrics[].sources`: direct source URLs or a clear `user-provided data` note.
+- `metrics[].sources`: source objects are preferred. A URL string remains accepted for backward compatibility.
+- Source object fields: `url` (or a clear `user-provided data` note), `publisher`, `retrieved_at`, `source_type`, `confidence`, `date_scope`, `caveat`, and `extraction_method`.
 - `metrics[].evidence_notes`: optional caveats such as conflicting sources, rollout wording, secondary-only source, or extraction from image/PDF.
 - `metrics[].higher_is_better`: defaults to `true`.
 - `comparison.primary_group`: group whose best entity is compared against baseline/external entities.
@@ -59,6 +69,8 @@ Require at least:
 
 - two entities
 - one metric
-- one numeric score
+- at least one metric with two numeric scores for a real comparison
+
+A metric with only one numeric score is allowed, but it is coverage-only and must not be presented as a comparison.
 
 For a useful report, prefer at least three entities and five metrics.

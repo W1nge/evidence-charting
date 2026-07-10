@@ -72,6 +72,18 @@ Python dependencies:
 - `matplotlib`
 - `numpy`
 
+Install them with:
+
+```powershell
+python -m pip install -r requirements.txt
+```
+
+Validate input without creating a workbook:
+
+```powershell
+python .\scripts\make_evidence_charting_workbook.py --validate-only --input .\data.json
+```
+
 ## Input JSON Shape
 
 ```json
@@ -96,9 +108,13 @@ Python dependencies:
       "scores": {
         "gpt56_sol": 64.6
       },
-      "sources": [
-        "https://example.com/source"
-      ],
+      "sources": [{
+        "url": "https://example.com/source",
+        "publisher": "Example Lab",
+        "retrieved_at": "2026-07-10",
+        "source_type": "official benchmark",
+        "confidence": "high"
+      }],
       "evidence_notes": "Optional caveat or extraction note."
     }
   ],
@@ -158,6 +174,13 @@ Validate workbook generation:
 python .\scripts\make_evidence_charting_workbook.py --self-test --output "$env:TEMP\evidence-charting-self-test.xlsx"
 ```
 
+Run the regression suite:
+
+```powershell
+python -m pip install pytest
+python -m pytest -q
+```
+
 Expected self-test behavior:
 
 - workbook opens
@@ -173,12 +196,15 @@ Expected self-test behavior:
 evidence-charting/
   SKILL.md
   agents/openai.yaml
+  evals/trigger_cases.yaml
+  requirements.txt
   references/
     data_schema.md
     evidence_finding.md
     workbook_contract.md
   scripts/
     make_evidence_charting_workbook.py
+  tests/test_generator.py
 ```
 
 ## Maintenance Notes

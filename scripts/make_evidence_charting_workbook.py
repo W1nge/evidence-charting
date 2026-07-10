@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import shutil
 import sys
 import tempfile
@@ -75,8 +76,8 @@ def normalize_color(value: str | None, index: int) -> str:
     value = str(value).strip()
     if not value.startswith("#"):
         value = "#" + value
-    if len(value) != 7:
-        return DEFAULT_PALETTE[index % len(DEFAULT_PALETTE)]
+    if not re.fullmatch(r"#[0-9A-Fa-f]{6}", value):
+        raise SystemExit(f"Invalid entity color: {value!r}; expected #RRGGBB.")
     return value.upper()
 
 
@@ -90,11 +91,35 @@ def as_number(value: Any) -> float | int | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
-        return value
+        return value if math.isfinite(value) else None
     try:
-        return float(str(value).replace(",", ""))
+        parsed = float(str(value).replace(",", ""))
+        return parsed if math.isfinite(parsed) else None
     except Exception:
         return None
+
+
+def normalize_source(value: Any) -> dict[str, str]:
+    if isinstance(value, str):
+        return {"url": value.strip()}
+    if not isinstance(value, dict):
+        return {}
+    fields = ["url", "publisher", "retrieved_at", "source_type", "confidence", "date_scope", "caveat", "extraction_method"]
+    return {field: str(value.get(field) or "").strip() for field in fields}
+
+
+def as_bool(value: Any, field: str) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (0, 1):
+        return bool(value)
+    raise SystemExit(f"{field} must be true or false, not {value!r}.")
+
+
+def excel_text(value: Any) -> Any:
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
 
 
 def load_spec(path: Path | None, self_test: bool) -> dict[str, Any]:
@@ -151,6 +176,8 @@ def load_spec(path: Path | None, self_test: bool) -> dict[str, Any]:
 
 
 def normalize_spec(spec: dict[str, Any]) -> dict[str, Any]:
+    if not isinstance(spec, dict):
+        raise SystemExit("Input JSON must be an object at the top level.")
     entities = spec.get("entities") or []
     metrics = spec.get("metrics") or []
     if len(entities) < 2:
@@ -159,6 +186,7 @@ def normalize_spec(spec: dict[str, Any]) -> dict[str, Any]:
         raise SystemExit("Spec must include at least one metric.")
 
     seen_ids = set()
+    seen_labels = set()
     normalized_entities = []
     for idx, entity in enumerate(entities):
         eid = str(entity.get("id") or "").strip()
@@ -167,7 +195,10 @@ def normalize_spec(spec: dict[str, Any]) -> dict[str, Any]:
             raise SystemExit(f"Entity at index {idx} is missing id.")
         if eid in seen_ids:
             raise SystemExit(f"Duplicate entity id: {eid}")
+        if label in seen_labels:
+            raise SystemExit(f"Duplicate entity label: {label}")
         seen_ids.add(eid)
+        seen_labels.add(label)
         normalized_entities.append(
             {
                 "id": eid,
@@ -188,14 +219,18 @@ def normalize_spec(spec: dict[str, Any]) -> dict[str, Any]:
         if isinstance(sources, str):
             sources = [sources]
         evidence_notes = str(metric.get("evidence_notes") or metric.get("evidence_note") or "").strip()
+        normalized_sources = [normalize_source(source) for source in sources]
+        normalized_sources = [source for source in normalized_sources if any(source.values())]
+        if not normalized_sources and not evidence_notes:
+            raise SystemExit(f"Metric is missing sources or an evidence note: {name}")
         normalized_metrics.append(
             {
                 "category": str(metric.get("category") or "General").strip(),
                 "name": name,
                 "unit": str(metric.get("unit") or "Score").strip(),
-                "higher_is_better": bool(metric.get("higher_is_better", True)),
+                "higher_is_better": as_bool(metric.get("higher_is_better", True), f"metrics[{idx}].higher_is_better"),
                 "scores": normalized_scores,
-                "sources": [str(s) for s in sources if s],
+                "sources": normalized_sources,
                 "evidence_notes": evidence_notes,
             }
         )
@@ -243,7 +278,7 @@ def compute_model_stats(spec: dict[str, Any]) -> dict[str, Any]:
             if value == 0:
                 zero_count += 1
 
-        winning = best_entity(numeric_values, higher)
+        winning = best_entity(numeric_values, higher) if len(numeric_values) >= 2 else None
         winners = []
         if winning:
             best_value = winning[1]
@@ -289,7 +324,7 @@ def compute_model_stats(spec: dict[str, Any]) -> dict[str, Any]:
                 delta_baseline = -delta_baseline
             if baseline_value != 0:
                 raw_delta = best_primary[1] - baseline_value
-                delta_baseline_pct = raw_delta / baseline_value * 100
+                delta_baseline_pct = (raw_delta if higher else -raw_delta) / abs(baseline_value) * 100
 
         delta_external = None
         delta_external_pct = None
@@ -299,7 +334,7 @@ def compute_model_stats(spec: dict[str, Any]) -> dict[str, Any]:
                 delta_external = -delta_external
             if best_external[1] != 0:
                 raw_delta = best_primary[1] - best_external[1]
-                delta_external_pct = raw_delta / best_external[1] * 100
+                delta_external_pct = (raw_delta if higher else -raw_delta) / abs(best_external[1]) * 100
 
         summary_rows.append(
             {
@@ -769,7 +804,7 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
                 row["delta_external"],
                 row["delta_external_pct"],
                 row["evidence_notes"],
-                "\n".join(row["sources"]),
+                "\n".join(source.get("url", "") for source in row["sources"]),
             ]
         )
     for row in range(2, ws.max_row + 1):
@@ -790,7 +825,7 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
                 metric["higher_is_better"],
                 *[metric["scores"].get(entity["id"]) for entity in entities],
                 metric.get("evidence_notes", ""),
-                "\n".join(metric["sources"]),
+                "\n".join(source.get("url", "") for source in metric["sources"]),
             ]
         )
     for col, entity in enumerate(entities, start=5):
@@ -798,22 +833,20 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
         ws.cell(1, col).font = white_font
 
     ws = wb.create_sheet("09_来源")
-    ws.append(["Source", "Notes"])
-    seen_sources = []
-    source_notes = {}
+    ws.append(["Metric", "URL / Source", "Publisher", "Retrieved", "Source type", "Confidence", "Date scope", "Caveat", "Extraction method", "Evidence notes"])
+    source_rows = []
     for metric in metrics:
         for source in metric["sources"]:
-            if source not in seen_sources:
-                seen_sources.append(source)
-            if metric.get("evidence_notes"):
-                source_notes.setdefault(source, set()).add(metric["evidence_notes"])
-    for source in seen_sources:
-        ws.append([source, "\n".join(sorted(source_notes.get(source, set())))])
+            row = [metric["name"], source.get("url", ""), source.get("publisher", ""), source.get("retrieved_at", ""), source.get("source_type", ""), source.get("confidence", ""), source.get("date_scope", ""), source.get("caveat", ""), source.get("extraction_method", ""), metric.get("evidence_notes", "")]
+            if row not in source_rows:
+                source_rows.append(row)
+    for row in source_rows:
+        ws.append(row)
     for row in range(2, ws.max_row + 1):
-        value = ws.cell(row, 1).value
+        value = ws.cell(row, 2).value
         if isinstance(value, str) and value.startswith(("http://", "https://")):
-            ws.cell(row, 1).hyperlink = value
-            ws.cell(row, 1).font = link_font
+            ws.cell(row, 2).hyperlink = value
+            ws.cell(row, 2).font = link_font
 
     for ws in wb.worksheets:
         ws.sheet_view.showGridLines = False
@@ -828,6 +861,8 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
                 cell.border = border
             for row in ws.iter_rows(min_row=2, max_row=max_row, min_col=1, max_col=max_col):
                 for cell in row:
+                    if cell.hyperlink is None:
+                        cell.value = excel_text(cell.value)
                     cell.alignment = wrap
                     cell.border = border
         if ws.title.startswith(("05_", "06_", "07_", "08_", "09_")):
@@ -854,7 +889,7 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
 
     wb.properties.title = spec["title"]
     wb.properties.subject = "Source-backed bar chart research workbook"
-    wb.properties.creator = "bar-chart-research skill"
+    wb.properties.creator = "evidence-charting skill"
     wb.properties.created = datetime.now()
     output.parent.mkdir(parents=True, exist_ok=True)
     wb.save(output)
@@ -880,11 +915,17 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Create a bar-chart research Excel workbook.")
     parser.add_argument("--input", type=Path, help="Input JSON spec.")
-    parser.add_argument("--output", type=Path, required=True, help="Output .xlsx path.")
+    parser.add_argument("--output", type=Path, help="Output .xlsx path (required unless --validate-only).")
     parser.add_argument("--self-test", action="store_true", help="Generate a workbook from synthetic test data.")
+    parser.add_argument("--validate-only", action="store_true", help="Validate and normalize input JSON without creating a workbook.")
     args = parser.parse_args(argv)
 
     spec = normalize_spec(load_spec(args.input, args.self_test))
+    if args.validate_only:
+        print(json.dumps({"valid": True, "metrics": len(spec["metrics"]), "entities": len(spec["entities"])}, ensure_ascii=False, indent=2))
+        return 0
+    if not args.output:
+        parser.error("--output is required unless --validate-only is used")
     result = build_workbook(spec, args.output)
     print(json.dumps(result, ensure_ascii=False, indent=2))
     return 0

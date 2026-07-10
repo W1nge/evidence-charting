@@ -1,14 +1,13 @@
 ---
 name: evidence-charting
 description: >
-  Load when the user asks for evidence-backed research charts, 柱状图调研,
-  benchmark research, score comparisons, competitor/model/product comparisons,
-  or an Excel report with sourced data, evidence audit, bar charts,
-  missing-value audit, fixed entity colors, and polished chart pages. Use for
-  requests like "做一个调研 Excel 柱状图", "跑分对比", "竞品对比图",
-  "research this and make charts", or "source-backed comparison workbook". Do
-  not use for simple one-off chart edits when the user only needs a quick
-  in-chat answer.
+  Load when the user asks to research or compare benchmarks, competitors,
+  models, or products and deliver a source-backed multi-chart Excel workbook;
+  also load when structured data should become an audited comparison workbook,
+  or an existing evidence workbook must be reviewed or rebuilt. Trigger phrases
+  include "柱状图调研", "跑分对比 Excel", "竞品对比工作簿", and "source-backed
+  comparison workbook". Do not use for research-only memos, in-chat answers,
+  dashboards, single charts, or simple Excel formatting/chart edits.
 ---
 
 # Evidence Charting
@@ -20,10 +19,10 @@ Create source-backed research workbooks with clear bar charts. The default outpu
 | Task | Required reads |
 |---|---|
 | Research + Excel chart report | `references/evidence_finding.md`, `references/workbook_contract.md`, `references/data_schema.md`; then run/adapt `scripts/make_evidence_charting_workbook.py` |
-| User provides structured data and only wants the workbook | `references/data_schema.md`; run `scripts/make_evidence_charting_workbook.py` |
-| User asks "find sources/evidence first" | `references/evidence_finding.md`; build an evidence ledger before charting |
+| User provides structured data and wants the workbook | `references/data_schema.md`, `references/workbook_contract.md`; run the generator |
+| User asks to find evidence as the first stage of a chart workbook | `references/evidence_finding.md`; build an evidence ledger before charting |
 | Fix or review an existing chart workbook | `references/workbook_contract.md`; inspect workbook sheets/charts/images before editing |
-| Other visualization request | Read this file; use the contract when the output is a multi-chart research workbook |
+| Research-only, dashboard, single-chart, or formatting request | Out of scope; use the more specific research, visualization, or spreadsheet workflow |
 
 ## Workflow
 
@@ -51,6 +50,7 @@ Create source-backed research workbooks with clear bar charts. The default outpu
 
 5. Generate the workbook.
    - Convert researched data into the JSON schema in `references/data_schema.md`.
+   - On first use or after generator changes, run the built-in `--self-test`. If it fails, fix the first error and rerun before using real data.
    - Run:
 
 ```bash
@@ -58,6 +58,7 @@ python <skill-dir>/scripts/make_evidence_charting_workbook.py --input data.json 
 ```
 
 6. Validate before responding.
+   - Run the generator with `--validate-only --input data.json` before generation.
    - Open/read the workbook and verify expected sheets exist.
    - Inspect the `.xlsx` package when practical and confirm it does not contain unexpected `xl/tables/table*.xml` repair-prone table parts.
    - Check missing-value audit: numeric + blank = entity cells, and zero count is not inflated by missing values.
@@ -65,21 +66,6 @@ python <skill-dir>/scripts/make_evidence_charting_workbook.py --input data.json 
    - Confirm each entity uses the same theme color across chart pages and table headers.
    - Confirm source URLs are present and clickable where possible.
    - Confirm every charted metric has a source note or source URL.
-
-## Default Workbook Structure
-
-Use this order unless the user asks otherwise:
-
-1. `00_阅读说明`
-2. `01_总览`
-3. `02_所有柱状图`
-4. `03_差距对比图` when a primary group/baseline comparison exists
-5. `04_按领域`
-6. `05_颜色标准`
-7. `06_缺失值审计`
-8. `07_差距摘要`
-9. `08_原始数据`
-10. `09_来源`
 
 ## Known Gotchas
 
