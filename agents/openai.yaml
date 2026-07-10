@@ -1,0 +1,7 @@
+interface:
+  display_name: "Evidence Charting"
+  short_description: "Source-backed research charts and Excel reports"
+  brand_color: "#0B5CAD"
+  default_prompt: "Use $evidence-charting to research a topic and create an Excel workbook with source-backed charts, evidence audit, missing-value audit, and fixed entity colors."
+policy:
+  allow_implicit_invocation: true
