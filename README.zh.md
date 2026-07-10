@@ -161,6 +161,7 @@ python .\scripts\make_evidence_charting_workbook.py --self-test --output "$env:T
 自测应满足：
 
 - 工作簿可以打开
+- 不会因为生成的表格 XML 触发 Excel 修复提示
 - 缺失值保持空白
 - 0 分数量不会因为缺失值而被抬高
 - 同一实体在图表和表格中颜色一致
@@ -188,4 +189,5 @@ evidence-charting/
 2. 不要把生成出来的 Excel 工作簿提交到 git。
 3. 运行 `quick_validate.py`。
 4. 运行生成脚本自测。
-5. 如果行为发生变化，把说明文件和脚本改动一起提交。
+5. 如果工作簿结构发生变化，检查生成的 `.xlsx` 包里没有非预期的 `xl/tables/table*.xml`。
+6. 如果行为发生变化，把说明文件和脚本改动一起提交。

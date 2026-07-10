@@ -161,6 +161,7 @@ python .\scripts\make_evidence_charting_workbook.py --self-test --output "$env:T
 Expected self-test behavior:
 
 - workbook opens
+- no Excel repair prompt from generated table XML
 - missing values remain blank
 - zero count is not inflated by missing values
 - entity colors stay consistent across charts and tables
@@ -188,4 +189,5 @@ When updating the skill:
 2. Keep generated workbooks out of git.
 3. Run `quick_validate.py`.
 4. Run the generator self-test.
-5. Commit both instruction and script changes together when behavior changes.
+5. Check generated `.xlsx` packages for unexpected `xl/tables/table*.xml` parts when workbook structure changes.
+6. Commit both instruction and script changes together when behavior changes.

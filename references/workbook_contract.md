@@ -6,6 +6,7 @@ Use this contract for multi-chart research workbooks.
 
 - Use one theme color per entity across every chart and table.
 - Put a color-standard sheet before audit/raw-data sheets.
+- Prefer styled ranges with autofilter over native Excel Table objects unless editability requires tables and the generated file is verified in desktop Excel.
 - Use single-column vertical chart layout by default.
 - Label every bar with the numeric value.
 - Put entity names on the chart axis or inside labels. Never rely on `Series 1`, `Series 2`, or positional legends.
@@ -36,6 +37,7 @@ Use this contract for multi-chart research workbooks.
 ## Validation Checklist
 
 - [ ] Workbook opens.
+- [ ] The `.xlsx` package has no unexpected `xl/tables/table*.xml` parts unless native tables were explicitly required and tested.
 - [ ] Expected sheets exist.
 - [ ] Missing-value audit arithmetic is correct.
 - [ ] No missing score was converted to `0`.

@@ -528,7 +528,6 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
     from openpyxl.drawing.image import Image as XLImage
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
-    from openpyxl.worksheet.table import Table, TableStyleInfo
 
     entities = spec["entities"]
     id_to_entity = {entity["id"]: entity for entity in entities}
@@ -589,6 +588,7 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
     wb = Workbook()
     header_fill = PatternFill("solid", fgColor="17324D")
     soft_fill = PatternFill("solid", fgColor="F3F7FB")
+    stripe_fill = PatternFill("solid", fgColor="F8FAFC")
     pos_fill = PatternFill("solid", fgColor="E2F0D9")
     neg_fill = PatternFill("solid", fgColor="FCE4D6")
     white_font = Font(color="FFFFFF", bold=True)
@@ -831,18 +831,15 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
                     cell.alignment = wrap
                     cell.border = border
         if ws.title.startswith(("05_", "06_", "07_", "08_", "09_")):
-            try:
-                table = Table(displayName="T" + str(wb.worksheets.index(ws) + 1), ref=ws.dimensions)
-                table.tableStyleInfo = TableStyleInfo(
-                    name="TableStyleMedium2",
-                    showFirstColumn=False,
-                    showLastColumn=False,
-                    showRowStripes=True,
-                    showColumnStripes=False,
-                )
-                ws.add_table(table)
-            except Exception:
-                ws.auto_filter.ref = ws.dimensions
+            # Avoid generating /xl/tables/table*.xml parts. Some Excel builds repair
+            # openpyxl table XML when headers contain rich/non-ASCII workbook data.
+            # A plain range with autofilter is more robust for generated reports.
+            ws.auto_filter.ref = ws.dimensions
+            for row_idx in range(2, max_row + 1):
+                if row_idx % 2 == 0:
+                    for cell in ws[row_idx]:
+                        if cell.fill.fill_type is None:
+                            cell.fill = stripe_fill
         if not ws.title.startswith(("01_", "02_", "03_", "04_")):
             for col in range(1, max_col + 1):
                 letter = get_column_letter(col)
