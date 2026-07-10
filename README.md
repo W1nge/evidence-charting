@@ -1,6 +1,6 @@
 # Evidence Charting
 
-[中文](README.zh.md) | English
+[Chinese README](README.zh.md) | English
 
 Evidence Charting is a Codex skill for turning source-backed research into audited Excel workbooks with clear bar charts.
 
@@ -41,7 +41,7 @@ Use $evidence-charting to research the latest AI model benchmark scores and crea
 ```
 
 ```text
-用 evidence-charting 调研几个竞品的价格、功能和公开数据，做成带来源和缺失值审计的 Excel 柱状图报告。
+Use $evidence-charting to research several competitors' pricing, features, and public data, then create an Excel bar-chart report with sources and a missing-value audit.
 ```
 
 The skill routes research work through:
@@ -130,18 +130,20 @@ See [references/data_schema.md](references/data_schema.md) for the full schema n
 
 ## Workbook Output
 
-The default workbook contains:
+The default workbook contains these numbered sheets:
 
-- `00_阅读说明`
-- `01_总览`
-- `02_所有柱状图`
-- `03_差距对比图`
-- `04_按领域`
-- `05_颜色标准`
-- `06_缺失值审计`
-- `07_差距摘要`
-- `08_原始数据`
-- `09_来源`
+- reading guide
+- overview
+- all metric charts
+- comparison charts, when comparison settings are provided
+- category charts
+- color standard
+- missing-value audit
+- comparison summary
+- raw data
+- evidence sources
+
+Worksheet names are localized in the generated workbook; their numeric prefixes keep the order stable across languages.
 
 ## Evidence Rules
 
