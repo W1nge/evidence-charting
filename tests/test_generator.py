@@ -46,3 +46,24 @@ def test_single_score_is_not_counted_as_a_win():
     stats = module.compute_model_stats(spec)
     assert stats["win_counts"] == {}
     assert stats["summary_rows"][0]["winner"] == ""
+
+
+def test_long_text_is_wrapped_sized_and_preserved(tmp_path):
+    long_note = "这是一段用于验证中文自动换行和行高估算的证据说明。" * 45
+    spec = {
+        "entities": [{"id": "a", "label": "模型甲"}, {"id": "b", "label": "Model B"}],
+        "metrics": [{"name": "Long note", "scores": {"a": 1, "b": 2}, "sources": ["user-provided data"], "evidence_notes": long_note}],
+    }
+    input_path = tmp_path / "long.json"
+    output_path = tmp_path / "long.xlsx"
+    input_path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
+    subprocess.run([sys.executable, str(SCRIPT), "--input", str(input_path), "--output", str(output_path)], check=True)
+    workbook = openpyxl.load_workbook(output_path)
+    sheet = workbook["09_来源"]
+    note_cell = sheet.cell(2, 10)
+    assert note_cell.alignment.wrap_text is True
+    assert note_cell.comment.text == long_note
+    assert "see comment" in note_cell.value
+    assert 24 < sheet.row_dimensions[2].height <= 180
+    assert sheet.column_dimensions["J"].width <= 48
+    workbook.close()

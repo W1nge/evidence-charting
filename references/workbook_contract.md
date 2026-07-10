@@ -12,6 +12,9 @@ Use this contract for multi-chart research workbooks.
 - Put entity names on the chart axis or inside labels. Never rely on `Series 1`, `Series 2`, or positional legends.
 - Keep each chart to one metric or one compatible unit group.
 - For many metrics, create one chart per metric and one composite chart per category.
+- Size text columns by rendered character width, treating CJK/full-width characters as wider than Latin text.
+- Wrap long text and estimate row height from the final column width. Cap row height so one record cannot dominate a sheet.
+- For exceptionally long notes, show a readable excerpt in the cell and preserve the complete text in a cell comment.
 
 ## Data Rules
 
@@ -45,3 +48,4 @@ Use this contract for multi-chart research workbooks.
 - [ ] At least one chart image was visually inspected.
 - [ ] Source sheet links back to the research evidence.
 - [ ] Source gaps and conflicts are visible, not hidden behind polished charts.
+- [ ] Long CJK/English notes wrap cleanly, row heights are readable, and exceptionally long text remains available in comments.

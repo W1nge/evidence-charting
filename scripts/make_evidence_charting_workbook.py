@@ -11,6 +11,7 @@ import shutil
 import sys
 import tempfile
 import textwrap
+import unicodedata
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -120,6 +121,29 @@ def excel_text(value: Any) -> Any:
     if isinstance(value, str) and value.startswith(("=", "+", "-", "@")):
         return "'" + value
     return value
+
+
+def display_width(value: Any) -> int:
+    """Approximate Excel display width, counting CJK/full-width glyphs as two."""
+    text = "" if value is None else str(value)
+    return max(
+        (sum(2 if unicodedata.east_asian_width(char) in {"W", "F"} else 1 for char in line) for line in text.splitlines()),
+        default=0,
+    )
+
+
+def estimated_line_count(value: Any, column_width: float) -> int:
+    text = "" if value is None else str(value)
+    usable_width = max(int(column_width) - 1, 8)
+    return max(1, sum(max(1, math.ceil(display_width(line) / usable_width)) for line in text.splitlines() or [""]))
+
+
+def compact_cell_text(value: Any, limit: int = 700) -> tuple[Any, str | None]:
+    """Keep sheets readable while preserving exceptionally long text in a comment."""
+    if not isinstance(value, str) or len(value) <= limit or value.startswith(("http://", "https://")):
+        return value, None
+    compact = value[: limit - 18].rstrip() + "\n… [see comment]"
+    return compact, value
 
 
 def load_spec(path: Path | None, self_test: bool) -> dict[str, Any]:
@@ -561,6 +585,7 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
     import openpyxl
     from openpyxl import Workbook, load_workbook
     from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.comments import Comment
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
     from openpyxl.utils import get_column_letter
 
@@ -862,7 +887,10 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
             for row in ws.iter_rows(min_row=2, max_row=max_row, min_col=1, max_col=max_col):
                 for cell in row:
                     if cell.hyperlink is None:
-                        cell.value = excel_text(cell.value)
+                        compact, full_text = compact_cell_text(excel_text(cell.value))
+                        cell.value = compact
+                        if full_text:
+                            cell.comment = Comment(full_text, "Evidence Charting")
                     cell.alignment = wrap
                     cell.border = border
         if ws.title.startswith(("05_", "06_", "07_", "08_", "09_")):
@@ -882,10 +910,17 @@ def build_workbook(spec: dict[str, Any], output: Path) -> dict[str, Any]:
                 for row in range(1, min(max_row, 80) + 1):
                     value = ws.cell(row, col).value
                     if value is not None:
-                        max_len = max(max_len, len(str(value)))
-                ws.column_dimensions[letter].width = min(max(max_len * 1.1, 11), 56)
+                        max_len = max(max_len, display_width(value))
+                ws.column_dimensions[letter].width = min(max(max_len * 1.05, 11), 48)
             for row in range(1, max_row + 1):
-                ws.row_dimensions[row].height = 24 if row == 1 else 34
+                if row == 1:
+                    ws.row_dimensions[row].height = 28
+                    continue
+                lines = max(
+                    estimated_line_count(ws.cell(row, col).value, ws.column_dimensions[get_column_letter(col)].width or 11)
+                    for col in range(1, max_col + 1)
+                )
+                ws.row_dimensions[row].height = min(max(24, lines * 15 + 6), 180)
 
     wb.properties.title = spec["title"]
     wb.properties.subject = "Source-backed bar chart research workbook"
